@@ -10,6 +10,10 @@ public abstract class AbstractDataParser<T> {
 	protected String encoding;
 	protected InputStream source;
 	
+	public AbstractDataParser(InputStream source) {
+		this("UTF-8",source);
+	}
+	
 	public AbstractDataParser(String encoding, InputStream source) {
 		this.encoding = encoding;
 		this.source = source;

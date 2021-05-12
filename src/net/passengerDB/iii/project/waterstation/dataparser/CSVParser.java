@@ -8,12 +8,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 public class CSVParser<T> extends AbstractDataParser<T> {
 
 	private String[] tags;
 	private char spliter;
+	
+	public CSVParser(InputStream source) {
+		this("UTF-8", source);
+	}
 	
 	public CSVParser(String encoding, InputStream source) {
 		super(encoding, source);
@@ -45,7 +52,7 @@ public class CSVParser<T> extends AbstractDataParser<T> {
 	}
 	
 	//根據此篇的基本規則進行解碼https://zh.wikipedia.org/wiki/%E9%80%97%E5%8F%B7%E5%88%86%E9%9A%94%E5%80%BC
-	private ArrayList<String> decodeRawString(String raw) {
+	public ArrayList<String> decodeRawString(String raw) {
 		
 		if(raw == null) return null;
 		
@@ -53,34 +60,29 @@ public class CSVParser<T> extends AbstractDataParser<T> {
 		//再使用管線操作對每一個元素進行適當的處理
 		//注:這不處理空白出現在被包裹的值之外的狀況。也就是說諸如 ..., "Ford" ,...會被分割為「 "Ford" 」而不是「Ford」或「"Ford"」
 		//此解析器不會特別去處理非法的CSV格式
+		//注意:輸入中不應該看到引號單獨存在於沒有被包裹的位置裡(例如: 1,2,",5 是非法的)。單個引號在匯出成CSV時會被轉換為「包裹的引號」，即""""
 		String[] tmp = raw.split(String.format("[%c]", this.spliter));
 		int len = tmp.length;
 		
 		//被合併過去的字串，原始位置會變成null
-		StringBuilder merage = null;
+		StringBuilder merge = null;
 		for(int i = 0 , target = 0; i < tmp.length ; i++) {
 			
-			if(tmp[i].length() < 2) continue;
+			if(tmp[i].length() < 1) continue;
 			
-			if(merage != null) {
-				merage.append(tmp[i]);
+			if(merge != null) {
+				merge.append(spliter);
+				merge.append(tmp[i]);
 				len--;
+				if(isWrapperEnd(tmp[i])) {
+					tmp[target] = merge.toString();
+					merge = null;
+				}
 				tmp[i] = null;
-				continue;
 			}
-			
-			if(isWrapperStart(tmp[i])) {
-				merage = new StringBuilder(tmp[i].substring(1));
+			else if(isWrapperStart(tmp[i])) {
+				merge = new StringBuilder(tmp[i]);
 				target = i;
-			}
-			if(isWrapperEnd(tmp[i])) {
-				merage.append(tmp[i]);
-				len--;
-				tmp[i] = null;
-				
-				tmp[target] = merage.toString();
-				
-				merage = null;
 			}
 			
 		}
@@ -88,19 +90,20 @@ public class CSVParser<T> extends AbstractDataParser<T> {
 		ArrayList<String> result = new ArrayList<>(len);
 		Arrays.stream(tmp).forEach((e) -> {if(e != null) result.add(e);});
 		
-		//將頭和尾的引號去掉
-		result.parallelStream().forEach((e) -> e.replaceAll("^\"|\"$", ""));
-		//將兩個引號置換為1個引號
-		result.parallelStream().forEach((e) -> e.replaceAll("\"{2}", "\""));
+		//將頭和尾的引號去掉，以及將嵌入的兩個引號置換為1個引號
+		return result.parallelStream()
+			.map((e) -> e.replaceAll("^\"|\"$", ""))
+			.map((e) -> e.replaceAll("\"{2}", "\""))
+			.collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
 		
-		return result;
 	}
 	
+	//會判斷是否只是一個單個引號的字串或引號為開頭/結尾的字串
 	private boolean isWrapperStart(String str) {
-		return str.charAt(0) == this.spliter && str.charAt(str.length()-1) != this.spliter;
+		return str.charAt(0) == '"' && str.length() > 1 && str.charAt(str.length()-1) != '"';
 	}
 	
 	private boolean isWrapperEnd(String str) {
-		return str.charAt(0) != this.spliter && str.charAt(str.length()-1) == this.spliter;
+		return str.charAt(0) != '"' && str.length() > 1 && str.charAt(str.length()-1) == '"';
 	}
 }
