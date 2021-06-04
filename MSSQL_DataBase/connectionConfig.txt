@@ -1,4 +1,4 @@
 DBNAME:
 USER:
 PASSWORD:
-IP:localhost:
+IP:

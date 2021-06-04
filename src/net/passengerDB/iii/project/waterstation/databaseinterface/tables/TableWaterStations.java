@@ -259,24 +259,33 @@ public final class TableWaterStations implements ISinglePrimaryKeyTable<WaterSta
 	private void cleanUpForeignKeyData(WaterStation data) {
 		
 		try {
-			TableLocations.INSTANCE.deleteData(data.getLocation());
-			Utils.markRecordDeprecated(TableLocations.INSTANCE , data.getLocation().getUniquidKey().get());
+			Location l = data.getLocation();
+			if(l != null) {
+				TableLocations.INSTANCE.deleteData(l);
+				Utils.markRecordDeprecated(TableLocations.INSTANCE , l.getUniquidKey().get());
+			}
 		} catch (SQLException e) {
 			//547是刪除仍然有被參考的外鍵的例外。這邊是透過檢查是不是出現這個例外來判斷有沒有刪除成功。沒刪除成功的話就不做任何事。
 			if(e.getErrorCode() != 547) e.printStackTrace();
 		}
 		
 		try {
-			TableWaterType.INSTANCE.deleteData(data.getWaterType());
-			Utils.markRecordDeprecated(TableWaterType.INSTANCE , data.getWaterType().getUniquidKey().get());
+			WaterType t = data.getWaterType();
+			if(t != null) {
+				TableWaterType.INSTANCE.deleteData(t);
+				Utils.markRecordDeprecated(TableWaterType.INSTANCE , t.getUniquidKey().get());
+			}
 		} catch (SQLException e) {
 			//547是刪除仍然有被參考的外鍵的例外。這邊是透過檢查是不是出現這個例外來判斷有沒有刪除成功。沒刪除成功的話就不做任何事。
 			if(e.getErrorCode() != 547) e.printStackTrace();
 		}
 		
 		try {
-			TableProviders.INSTANCE.deleteData(data.getProvider());
-			Utils.markRecordDeprecated(TableProviders.INSTANCE , data.getProvider().getUniquidKey().get());
+			Provider p = data.getProvider();
+			if(p != null) {
+				TableProviders.INSTANCE.deleteData(p);
+				Utils.markRecordDeprecated(TableProviders.INSTANCE , p.getUniquidKey().get());
+			}
 		} catch (SQLException e) {
 			//547是刪除仍然有被參考的外鍵的例外。這邊是透過檢查是不是出現這個例外來判斷有沒有刪除成功。沒刪除成功的話就不做任何事。
 			if(e.getErrorCode() != 547) e.printStackTrace();
@@ -291,6 +300,8 @@ public final class TableWaterStations implements ISinglePrimaryKeyTable<WaterSta
 	 * 使用like %[數據]%來查詢資料。亦即只要某一筆資料的該鍵值，一部份符合條件，則該筆資料就會被查出。
 	 * 例：data.setProvider(new Provider("大"))後傳入
 	 * 則只要任何一筆資料，它的provider資料行內的字串，包含了"大"這個字，就會被查出。
+	 * 
+	 * 依日期搜索的部分使用 = 來進行完整比較
 	 * 
 	 * 若無指定任何條件則會回傳空的結果。
 	 * 
@@ -331,11 +342,23 @@ public final class TableWaterStations implements ISinglePrimaryKeyTable<WaterSta
 			index++;
 			sqlStatement.append(String.format("%s.%s like ? ", TableProviders.INSTANCE.getTableName(), TableProviders.INSTANCE.getDataColumnName()));
 		}
+		if(data.getName() != null) {
+			if(index > 1) sqlStatement.append("and ");
+			indexMapping.put(COLUMN_NAMES[2], index);
+			index++;
+			sqlStatement.append(String.format("%s.%s like ? ", this.getTableName(), COLUMN_NAMES[2]));
+		}
+		if(data.getUpdateDate() != null) {
+			if(index > 1) sqlStatement.append("and ");
+			indexMapping.put(COLUMN_NAMES[5], index);
+			index++;
+			sqlStatement.append(String.format("%s.%s = ? ", this.getTableName(), COLUMN_NAMES[5]));
+		}
 		
 		if(index == 1) return result;
 		
 		try(PreparedStatement ps = c.prepareStatement(sqlStatement.toString());){
-			indexMapping.forEach((tableName,i) -> {setStatementParam(ps, tableName, i, data);});
+			indexMapping.forEach((key,i) -> {setStatementParam(ps, key, i, data);});
 			
 			ResultSet resSet = ps.executeQuery();
 			
@@ -355,14 +378,18 @@ public final class TableWaterStations implements ISinglePrimaryKeyTable<WaterSta
 		return sqlStatement;
 	}
 	
-	private void setStatementParam(PreparedStatement ps, String tableName, int index, WaterStation data) {
+	private void setStatementParam(PreparedStatement ps, String key, int index, WaterStation data) {
 		try {
-			if(tableName == TableLocations.INSTANCE.getTableName()) {
+			if(key == TableLocations.INSTANCE.getTableName()) {
 				ps.setString(index, "%" + data.getLocation().getData() + "%");
-			}else if(tableName == TableWaterType.INSTANCE.getTableName()) {
+			}else if(key == TableWaterType.INSTANCE.getTableName()) {
 				ps.setString(index, "%" + data.getWaterType().getData() + "%");
-			}else if(tableName == TableProviders.INSTANCE.getTableName()) {
+			}else if(key == TableProviders.INSTANCE.getTableName()) {
 				ps.setString(index, "%" + data.getProvider().getData() + "%");
+			}else if(key == COLUMN_NAMES[2]) {
+				ps.setString(index, "%" + data.getName() + "%");
+			}else if(key == COLUMN_NAMES[5]) {
+				ps.setDate(index, data.getUpdateDate());
 			}
 		}catch(SQLException e) {
 			e.printStackTrace();
