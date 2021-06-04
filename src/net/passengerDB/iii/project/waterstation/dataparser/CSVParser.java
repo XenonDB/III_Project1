@@ -32,7 +32,10 @@ public class CSVParser {
 		//注:這不處理空白出現在被包裹的值之外的狀況。也就是說諸如 ..., "Ford" ,...會被分割為「 "Ford" 」而不是「Ford」或「"Ford"」
 		//此解析器不會特別去處理非法的CSV格式
 		//注意:輸入中不應該看到引號單獨存在於沒有被包裹的位置裡(例如: 1,2,",5 是非法的)。單個引號在匯出成CSV時會被轉換為「包裹的引號」，即""""
-		String[] tmp = raw.split(String.format("[%c]", this.spliter));
+		
+		//limit設為-1來避免遇到最後一個空值而丟失null狀況
+		//例: "1,2,3,".split(",")的長度只有3
+		String[] tmp = raw.split(String.format("[%c]", this.spliter),-1);
 		int len = tmp.length;
 		
 		//被合併過去的字串，原始位置會變成null
@@ -60,10 +63,6 @@ public class CSVParser {
 		
 		ArrayList<String> result = new ArrayList<>(len);
 		Arrays.stream(tmp).forEach((e) -> {if(e != null) result.add(e);});
-		
-		//避免遇到最後一個空值而丟失null狀況
-		//例: "1,2,3,".split(",")的長度只有3
-		if(raw.charAt(raw.length()-1) == this.spliter) result.add("");
 		
 		//將頭和尾的引號去掉，以及將嵌入的兩個引號置換為1個引號
 		return result.parallelStream()

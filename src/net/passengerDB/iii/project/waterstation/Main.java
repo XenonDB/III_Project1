@@ -29,7 +29,7 @@ public class Main {
 	static String URL4 = "https://data.tainan.gov.tw/dataset/fb79b9f2-c57d-42fc-bbd3-df0351c627b5/resource/30cb04fd-08c5-4a98-b2f0-da5cf4a261b0/download/watersource.csv";
 	
 	public static void main(String[] args) throws SQLException {
-		/*
+		
 		//指定程式設定檔來連接資料庫
 		File workingPath = new File(args[0]);
 		
@@ -60,11 +60,7 @@ public class Main {
 		
 		//匯出加水站資料表為CSV檔案
 		exportDataFromDataBaseDemo1(workingPath.getParent());
-		*/
-		for(String s : "1,2,3,".split(",")) {
-			System.out.println(s);
-		}
-		System.out.println("1,2,,,,,3,".split("[,]").length);
+		
 	}
 	/*
 	public static void test() {
