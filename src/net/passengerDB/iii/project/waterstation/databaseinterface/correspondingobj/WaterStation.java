@@ -64,7 +64,7 @@ public class WaterStation implements IUniquidKeyData<Integer> {
 	}
 
 	/**
-	 * 不可設為null
+	 * 因為資料表該欄有約束，所以不可設為null
 	 * */
 	public void setLocation(Location location) {
 		if(!isQueryOnly() && location == null) throw new IllegalArgumentException("Can't set null location for a water station");
