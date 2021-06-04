@@ -22,6 +22,7 @@ public class CSVParser {
 	}
 	
 	//根據此篇的基本規則進行解碼https://zh.wikipedia.org/wiki/%E9%80%97%E5%8F%B7%E5%88%86%E9%9A%94%E5%80%BC
+	//已修正: BUG 使用split的話，遇到最後一個空執會丟失
 	public ArrayList<String> decodeRawString(String raw) {
 		
 		if(raw == null) return null;
@@ -59,6 +60,10 @@ public class CSVParser {
 		
 		ArrayList<String> result = new ArrayList<>(len);
 		Arrays.stream(tmp).forEach((e) -> {if(e != null) result.add(e);});
+		
+		//避免遇到最後一個空值而丟失null狀況
+		//例: "1,2,3,".split(",")的長度只有3
+		if(raw.charAt(raw.length()-1) == this.spliter) result.add("");
 		
 		//將頭和尾的引號去掉，以及將嵌入的兩個引號置換為1個引號
 		return result.parallelStream()
