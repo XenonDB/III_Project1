@@ -1,52 +1,22 @@
 package net.passengerDB.iii.project.waterstation.dataparser;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
-public class CSVParser<T> extends AbstractDataParser<T> {
+public class CSVParser {
 
-	private String[] tags;
 	private char spliter;
 	
-	public CSVParser(InputStream source) {
-		this("UTF-8", source);
+	public CSVParser() {
+		this(',');
 	}
 	
-	public CSVParser(String encoding, InputStream source) {
-		super(encoding, source);
-		setSpliter(',');
+	public CSVParser(char spliter) {
+		setSpliter(spliter);
 	}
 	
-	@Override
-	public Collection<T> parseData(Collection<T> container) {
-		
-		try(InputStreamReader isr = new InputStreamReader(source, encoding)) {
-			
-			BufferedReader br = new BufferedReader(isr);
-			String tmp = br.readLine();
-			while(tmp != null) {
-				
-				tmp = br.readLine();
-			}
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return container;
-	}
 
-	public CSVParser<T> setSpliter(char s) {
+	public CSVParser setSpliter(char s) {
 		this.spliter = s;
 		return this;
 	}
@@ -106,4 +76,38 @@ public class CSVParser<T> extends AbstractDataParser<T> {
 	private boolean isWrapperEnd(String str) {
 		return str.charAt(0) != '"' && str.length() > 1 && str.charAt(str.length()-1) == '"';
 	}
+	
+	//想嘗試用stream做平行化處理，但還不太熟悉的樣子。
+	public String exportToCSVRecord(String[] eles) {
+		ArrayList<String> tmpResult = Arrays.stream(eles).parallel()
+		.map((e) -> {
+			
+			String tmp = e;
+			
+			boolean flag = false;
+			if(tmp.indexOf(this.spliter) > -1) {
+				flag = true;
+			}
+			if(tmp.indexOf('"') > -1) {
+				flag = true;
+				tmp = tmp.replaceAll("\"", "\"\"");
+			}
+			if(flag) {
+				tmp = "\"" + tmp + "\"";
+			}
+			return tmp;
+		})
+		.collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+		
+		StringBuilder sb = new StringBuilder(tmpResult.get(0));
+		
+		for(int i = 1 ; i < tmpResult.size() ; i++) {
+			sb.append(this.spliter);
+			sb.append(tmpResult.get(i));
+		}
+		
+		return sb.toString();
+		
+	}
+	
 }
