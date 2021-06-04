@@ -1,7 +1,6 @@
 package net.passengerDB.iii.project.waterstation.databaseinterface;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
