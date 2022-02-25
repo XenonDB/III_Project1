@@ -17,6 +17,7 @@ public class CSVParser {
 	
 
 	public CSVParser setSpliter(char s) {
+		if(s == '"') throw new IllegalArgumentException("Can't set \" as a spliter.");
 		this.spliter = s;
 		return this;
 	}
@@ -29,14 +30,11 @@ public class CSVParser {
 		
 		//先使用分割符切割，接著立即處裡分割符和引號被包裹的情況
 		//再使用管線操作對每一個元素進行適當的處理
-		//注:這不處理空白出現在被包裹的值之外的狀況。也就是說諸如 ..., "Ford" ,...會被分割為「 "Ford" 」而不是「Ford」或「"Ford"」
-		//此解析器不會特別去處理非法的CSV格式
 		//注意:輸入中不應該看到引號單獨存在於沒有被包裹的位置裡(例如: 1,2,",5 是非法的)。單個引號在匯出成CSV時會被轉換為「包裹的引號」，即""""
 		
 		//limit設為-1來避免遇到最後一個空值而丟失null狀況
 		//例: "1,2,3,".split(",")的長度只有3
 		String[] tmp = raw.split(String.format("[%c]", this.spliter),-1);
-		int len = tmp.length;
 		
 		//被合併過去的字串，原始位置會變成null
 		StringBuilder merge = null;
@@ -47,7 +45,6 @@ public class CSVParser {
 			if(merge != null) {
 				merge.append(spliter);
 				merge.append(tmp[i]);
-				len--;
 				if(isWrapperEnd(tmp[i])) {
 					tmp[target] = merge.toString();
 					merge = null;
@@ -61,15 +58,38 @@ public class CSVParser {
 			
 		}
 		
-		ArrayList<String> result = new ArrayList<>(len);
-		Arrays.stream(tmp).forEach((e) -> {if(e != null) result.add(e);});
+		for(String contant : tmp) {
+			if(!this.isValidContent(contant)) throw new IllegalArgumentException("Found an invalid CSV format string:["+ contant + "], at raw string:["+raw+']');
+		}
 		
 		//將頭和尾的引號去掉，以及將嵌入的兩個引號置換為1個引號
-		return result.parallelStream()
-			.map((e) -> e.replaceAll("^\"|\"$", ""))
-			.map((e) -> e.replaceAll("\"{2}", "\""))
-			.collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
-		
+		return Arrays.stream(tmp)
+				.filter(e -> e != null)
+				.map(e -> e.replaceAll("^\"|\"$", ""))
+				.map(e -> e.replaceAll("\"{2}", "\""))
+				.collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+	}
+	
+	//測試一個包含在CSV字串中的一格內容是否合法。
+	//諸如 ..., "Ford" ,... 的CSV記錄被視為非法的，因為引號若要被視為字串的一部分，應該被一組引號包住且以兩個引號("")表示。
+	//此種的CSV記錄裡當不會從正常的CSV轉換器輸出。
+	private boolean isValidContent(String contant) {
+		if(contant == null || contant.length() == 0) return true;
+		if(contant.length() == 1) return contant.charAt(0) != '"';
+		if(contant.length() > 1 && contant.charAt(0) == '"' && contant.charAt(contant.length()-1) == '"') {
+			int continusQuotes = 0;
+			for(int i = 1 ; i < contant.length()-2 ; i++) {
+				if(contant.charAt(i) == '"') {
+					continusQuotes++;
+					continue;
+				}else {
+					if(continusQuotes % 2 == 1) return false;
+					continusQuotes = 0;
+				}
+			}
+			return continusQuotes % 2 == 0;
+		}
+		return contant.indexOf('"') < 0;
 	}
 	
 	//會判斷是否只是一個單個引號的字串或引號為開頭/結尾的字串
